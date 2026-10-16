@@ -951,16 +951,3 @@ main().catch((error) => {
   }
   client.destroy();
   process.exitCode = 1;
-});{
-  "name": "node-console",
-  "version": "1.0.0",
-  "private": true,
-  "scripts": {
-    "start": "node index.js"
-  },
-  "dependencies": {
-    "@napi-rs/canvas": "^1.0.11",
-    "discord.js": "^14.27.0",
-    "express": "^5.2.1"
-  }
-}
