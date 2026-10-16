@@ -646,9 +646,15 @@ function fitFontSize(context, text, maxWidth, startingSize) {
   let size = startingSize;
 
   while (size > 24) {
-        context.font = `700 ${size}px ${FONT_FAMILY}`;
+    context.font = `700 ${size}px ${FONT_FAMILY}`;
     if (context.measureText(text).width <= maxWidth) break;
- async function renderRankCard(user, profile, rank) {
+    size -= 2;
+  }
+
+  return size;
+}
+
+async function renderRankCard(user, profile, rank) {
   const W = 1000, H = 340;
   const canvas = createCanvas(W, H);
   const context = canvas.getContext("2d");
@@ -656,7 +662,6 @@ function fitFontSize(context, text, maxWidth, startingSize) {
   const progress = getLevelProgress(profile.xp);
   const progressRatio = Math.max(0, Math.min(1, progress.currentXp / progress.neededXp));
 
-  // background
   const bg = context.createLinearGradient(0, 0, W, H);
   bg.addColorStop(0, "#0f1220");
   bg.addColorStop(0.5, "#141a2e");
@@ -664,7 +669,6 @@ function fitFontSize(context, text, maxWidth, startingSize) {
   context.fillStyle = bg;
   context.fillRect(0, 0, W, H);
 
-  // glow accents
   context.save();
   context.globalAlpha = 0.14;
   context.fillStyle = "#7c8cff";
@@ -673,7 +677,6 @@ function fitFontSize(context, text, maxWidth, startingSize) {
   context.beginPath(); context.arc(780, 340, 170, 0, Math.PI * 2); context.fill();
   context.restore();
 
-  // card
   drawRoundedRect(context, 18, 18, W - 36, H - 36, 28);
   context.fillStyle = "rgba(15, 20, 38, 0.72)";
   context.fill();
@@ -681,7 +684,6 @@ function fitFontSize(context, text, maxWidth, startingSize) {
   context.lineWidth = 2;
   context.stroke();
 
-  // avatar + ring
   const centerX = 165, centerY = H / 2, ringRadius = 96, ringWidth = 12;
 
   context.beginPath();
@@ -715,7 +717,6 @@ function fitFontSize(context, text, maxWidth, startingSize) {
     context.restore();
   } catch (e) {}
 
-  // text
   const x = 300;
   const username = user.globalName || user.username;
   const nameSize = fitFontSize(context, username, 600, 46);
@@ -732,7 +733,6 @@ function fitFontSize(context, text, maxWidth, startingSize) {
   context.fillStyle = "#a78bfa";
   context.fillText(`#${rank}`, x + 92, 158);
 
-  // level pill
   const pillW = 150, pillH = 44, pillX = x + 210, pillY = 130;
   drawRoundedRect(context, pillX, pillY, pillW, pillH, pillH / 2);
   const pillGrad = context.createLinearGradient(pillX, 0, pillX + pillW, 0);
@@ -746,7 +746,6 @@ function fitFontSize(context, text, maxWidth, startingSize) {
   context.fillText(`LEVEL ${progress.level}`, pillX + pillW / 2, pillY + 29);
   context.textAlign = "left";
 
-  // progress bar
   const barX = x, barY = 200, barW = 620, barH = 26;
   drawRoundedRect(context, barX, barY, barW, barH, barH / 2);
   context.fillStyle = "rgba(255,255,255,0.08)";
@@ -760,28 +759,18 @@ function fitFontSize(context, text, maxWidth, startingSize) {
   context.fillStyle = barGrad;
   context.fill();
 
-  // xp text
   context.font = `600 20px ${FONT_FAMILY}`;
   context.fillStyle = "#cbd2ff";
   context.textAlign = "right";
   context.fillText(`${progress.currentXp} / ${progress.neededXp} XP`, barX + barW, barY - 12);
   context.textAlign = "left";
 
-  // messages
   context.font = `500 18px ${FONT_FAMILY}`;
   context.fillStyle = "#8f9bb5";
   context.fillText(`${profile.messages || 0} messages`, x, 272);
 
   return canvas.encode("png");
-} 
-  context.font = "500 15px Arial";
-  context.fillStyle = "#8f9bb5";
-  context.fillText(`${profile.messages} messages`, 310, 294);
-
-  return canvas.encode("png");
 }
-
-async function handleRank(interaction) {
   await interaction.deferReply();
 
   const user = interaction.options.getUser("user") || interaction.user;
