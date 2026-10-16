@@ -768,11 +768,12 @@ async function renderRankCard(user, profile, rank) {
   context.font = `500 18px ${FONT_FAMILY}`;
   context.fillStyle = "#8f9bb5";
   context.fillText(`${profile.messages || 0} messages`, x, 272);
-
   return canvas.encode("png");
 }
-  await interaction.deferReply();
 
+async function handleRank(interaction) {
+  await interaction.deferReply();
+    
   const user = interaction.options.getUser("user") || interaction.user;
   const key = profileKey(interaction.guildId, user.id);
   const profile = database[key] || { xp: 0, level: 0, messages: 0 };
