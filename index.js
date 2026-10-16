@@ -951,3 +951,4 @@ main().catch((error) => {
   }
   client.destroy();
   process.exitCode = 1;
+});
