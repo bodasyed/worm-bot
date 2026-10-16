@@ -12,9 +12,15 @@ const {
   Routes,
   SlashCommandBuilder,
 } = require("discord.js");
-const { createCanvas, loadImage } = require("@napi-rs/canvas");
+const { createCanvas, loadImage, GlobalFonts } = require("@napi-rs/canvas");
 const express = require("express");
-
+let FONT_FAMILY = "sans-serif";
+try {
+  GlobalFonts.registerFromPath(path.join(__dirname, "font.ttf"), "RankFont");
+  FONT_FAMILY = "RankFont";
+} catch (e) {
+  console.warn("Font not loaded:", e.message);
+}
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
 const DASHBOARD_PASSWORD = process.env.DASHBOARD_PASSWORD;
@@ -640,119 +646,134 @@ function fitFontSize(context, text, maxWidth, startingSize) {
   let size = startingSize;
 
   while (size > 24) {
-    context.font = `700 ${size}px Arial`;
+        context.font = `700 ${size}px ${FONT_FAMILY}`;
     if (context.measureText(text).width <= maxWidth) break;
-    size -= 2;
-  }
-
-  return size;
-}
-
-async function renderRankCard(user, profile, rank) {
-  const canvas = createCanvas(1000, 340);
+ async function renderRankCard(user, profile, rank) {
+  const W = 1000, H = 340;
+  const canvas = createCanvas(W, H);
   const context = canvas.getContext("2d");
+
   const progress = getLevelProgress(profile.xp);
-  const progressRatio = Math.min(1, progress.currentXp / progress.neededXp);
+  const progressRatio = Math.max(0, Math.min(1, progress.currentXp / progress.neededXp));
 
-  const background = context.createLinearGradient(0, 0, 1000, 340);
-  background.addColorStop(0, "#111827");
-  background.addColorStop(1, "#1d2942");
-  context.fillStyle = background;
-  context.fillRect(0, 0, canvas.width, canvas.height);
+  // background
+  const bg = context.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#0f1220");
+  bg.addColorStop(0.5, "#141a2e");
+  bg.addColorStop(1, "#0d1424");
+  context.fillStyle = bg;
+  context.fillRect(0, 0, W, H);
 
-  context.globalAlpha = 0.18;
-  context.fillStyle = "#7186ff";
-  context.beginPath();
-  context.arc(910, 45, 175, 0, Math.PI * 2);
+  // glow accents
+  context.save();
+  context.globalAlpha = 0.14;
+  context.fillStyle = "#7c8cff";
+  context.beginPath(); context.arc(900, 30, 210, 0, Math.PI * 2); context.fill();
+  context.fillStyle = "#a78bfa";
+  context.beginPath(); context.arc(780, 340, 170, 0, Math.PI * 2); context.fill();
+  context.restore();
+
+  // card
+  drawRoundedRect(context, 18, 18, W - 36, H - 36, 28);
+  context.fillStyle = "rgba(15, 20, 38, 0.72)";
   context.fill();
-  context.globalAlpha = 1;
-
-  drawRoundedRect(context, 18, 18, 964, 304, 28);
-  context.fillStyle = "rgba(11, 16, 30, 0.74)";
-  context.fill();
-  context.strokeStyle = "rgba(255, 255, 255, 0.09)";
+  context.strokeStyle = "rgba(124, 140, 255, 0.28)";
   context.lineWidth = 2;
   context.stroke();
 
-  const centerX = 170;
-  const centerY = 170;
-  const ringRadius = 104;
+  // avatar + ring
+  const centerX = 165, centerY = H / 2, ringRadius = 96, ringWidth = 12;
 
   context.beginPath();
   context.arc(centerX, centerY, ringRadius, 0, Math.PI * 2);
-  context.strokeStyle = "#303b55";
-  context.lineWidth = 12;
+  context.strokeStyle = "rgba(255,255,255,0.10)";
+  context.lineWidth = ringWidth;
   context.stroke();
 
   if (progressRatio > 0) {
     context.beginPath();
-    context.arc(
-      centerX,
-      centerY,
-      ringRadius,
-      -Math.PI / 2,
-      -Math.PI / 2 + Math.PI * 2 * progressRatio,
-    );
-    context.strokeStyle = "#7c8cff";
-    context.lineWidth = 12;
+    context.arc(centerX, centerY, ringRadius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progressRatio);
+    const ringGrad = context.createLinearGradient(centerX - ringRadius, 0, centerX + ringRadius, 0);
+    ringGrad.addColorStop(0, "#5865f2");
+    ringGrad.addColorStop(1, "#a78bfa");
+    context.strokeStyle = ringGrad;
+    context.lineWidth = ringWidth;
     context.lineCap = "round";
     context.stroke();
   }
 
-  const avatarUrl = user.displayAvatarURL({
-    extension: "png",
-    forceStatic: true,
-    size: 256,
-  });
-  const avatar = await loadImage(avatarUrl);
+  try {
+    const avatarUrl = user.displayAvatarURL({ extension: "png", forceStatic: true, size: 256 });
+    const avatar = await loadImage(avatarUrl);
+    const inner = ringRadius - ringWidth / 2 - 6;
+    context.save();
+    context.beginPath();
+    context.arc(centerX, centerY, inner, 0, Math.PI * 2);
+    context.closePath();
+    context.clip();
+    context.drawImage(avatar, centerX - inner, centerY - inner, inner * 2, inner * 2);
+    context.restore();
+  } catch (e) {}
 
-  context.save();
-  context.beginPath();
-  context.arc(centerX, centerY, 84, 0, Math.PI * 2);
-  context.clip();
-  context.drawImage(avatar, centerX - 84, centerY - 84, 168, 168);
-  context.restore();
-
+  // text
+  const x = 300;
   const username = user.globalName || user.username;
-  const usernameSize = fitFontSize(context, username, 560, 50);
-  context.font = `700 ${usernameSize}px Arial`;
-  context.fillStyle = "#f5f7ff";
-  context.fillText(username, 310, 124);
-
-  context.font = "600 20px Arial";
-  context.fillStyle = "#9ba8c3";
-  context.fillText("SERVER RANK", 310, 166);
-  context.font = "700 30px Arial";
+  const nameSize = fitFontSize(context, username, 600, 46);
+  context.font = `700 ${nameSize}px ${FONT_FAMILY}`;
   context.fillStyle = "#ffffff";
-  context.fillText(`#${rank}`, 445, 168);
+  context.textAlign = "left";
+  context.textBaseline = "alphabetic";
+  context.fillText(username, x, 108);
 
-  drawRoundedRect(context, 310, 190, 158, 40, 14);
-  context.fillStyle = "rgba(124, 140, 255, 0.18)";
+  context.font = `600 22px ${FONT_FAMILY}`;
+  context.fillStyle = "#8f9bb5";
+  context.fillText("RANK", x, 158);
+  context.font = `700 30px ${FONT_FAMILY}`;
+  context.fillStyle = "#a78bfa";
+  context.fillText(`#${rank}`, x + 92, 158);
+
+  // level pill
+  const pillW = 150, pillH = 44, pillX = x + 210, pillY = 130;
+  drawRoundedRect(context, pillX, pillY, pillW, pillH, pillH / 2);
+  const pillGrad = context.createLinearGradient(pillX, 0, pillX + pillW, 0);
+  pillGrad.addColorStop(0, "rgba(88,101,242,0.35)");
+  pillGrad.addColorStop(1, "rgba(167,139,250,0.35)");
+  context.fillStyle = pillGrad;
   context.fill();
-  context.font = "700 18px Arial";
-  context.fillStyle = "#cbd2ff";
-  context.fillText(`LEVEL ${progress.level}`, 330, 216);
-
-  context.font = "600 18px Arial";
-  context.fillStyle = "#d8deee";
-  context.textAlign = "right";
-  context.fillText(
-    `${progress.currentXp} / ${progress.neededXp} XP`,
-    940,
-    216,
-  );
+  context.font = `700 22px ${FONT_FAMILY}`;
+  context.fillStyle = "#dfe4ff";
+  context.textAlign = "center";
+  context.fillText(`LEVEL ${progress.level}`, pillX + pillW / 2, pillY + 29);
   context.textAlign = "left";
 
-  drawRoundedRect(context, 310, 247, 630, 22, 11);
-  context.fillStyle = "#303b55";
+  // progress bar
+  const barX = x, barY = 200, barW = 620, barH = 26;
+  drawRoundedRect(context, barX, barY, barW, barH, barH / 2);
+  context.fillStyle = "rgba(255,255,255,0.08)";
   context.fill();
 
-  if (progressRatio > 0) {
-    drawRoundedRect(context, 310, 247, Math.max(22, 630 * progressRatio), 22, 11);
-    context.fillStyle = "#7c8cff";
-    context.fill();
-  }
+  const fillW = Math.max(barH, barW * progressRatio);
+  drawRoundedRect(context, barX, barY, fillW, barH, barH / 2);
+  const barGrad = context.createLinearGradient(barX, 0, barX + barW, 0);
+  barGrad.addColorStop(0, "#5865f2");
+  barGrad.addColorStop(1, "#a78bfa");
+  context.fillStyle = barGrad;
+  context.fill();
 
+  // xp text
+  context.font = `600 20px ${FONT_FAMILY}`;
+  context.fillStyle = "#cbd2ff";
+  context.textAlign = "right";
+  context.fillText(`${progress.currentXp} / ${progress.neededXp} XP`, barX + barW, barY - 12);
+  context.textAlign = "left";
+
+  // messages
+  context.font = `500 18px ${FONT_FAMILY}`;
+  context.fillStyle = "#8f9bb5";
+  context.fillText(`${profile.messages || 0} messages`, x, 272);
+
+  return canvas.encode("png");
+} 
   context.font = "500 15px Arial";
   context.fillStyle = "#8f9bb5";
   context.fillText(`${profile.messages} messages`, 310, 294);
